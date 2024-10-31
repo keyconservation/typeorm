@@ -913,7 +913,7 @@ export abstract class QueryBuilder<Entity extends ObjectLiteral> {
                     metadata,
                     this.expressionMap.mainAlias!.name,
                 )
-                if (conditions.length) conditionsArray.push(conditions)
+                if (conditions.length) conditionsArray.push(...conditions)
             }
         }
 

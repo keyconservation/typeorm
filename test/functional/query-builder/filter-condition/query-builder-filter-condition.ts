@@ -10,6 +10,7 @@ import { User } from "./entity/User"
 import { Post } from "./entity/Post"
 import { Comment } from "./entity/Comment"
 import { CommentLike } from "./entity/CommentLike"
+import { DirectConversation } from "./entity/DirectConversation"
 
 describe("query builder > filter condition", () => {
     let dataSources: DataSource[]
@@ -440,6 +441,48 @@ describe("query builder > filter condition", () => {
                 })
                 expect(posts2.length).to.equal(1)
                 expect(posts2[0].author).to.not.exist
+            }),
+        ))
+
+    it("filterConditionsCascade should work with multiple relations", () =>
+        Promise.all(
+            dataSources.map(async (dataSource) => {
+                const userRepository = dataSource.getRepository(User)
+                const directConversationRepository = dataSource.getRepository(DirectConversation)
+
+                const user1 = new User()
+                user1.isDeactivated = false
+                const user2 = new User()
+                user2.isDeactivated = false
+
+                await userRepository.save([user1, user2])
+
+                const directConversation = new DirectConversation()
+                directConversation.user1 = user1
+                directConversation.user2 = user2
+
+                await directConversationRepository.save(directConversation)
+
+                const directConversations = await directConversationRepository.find({
+                    relations: {
+                        user1: true,
+                        user2: true,
+                    },
+                })
+                expect(directConversations.length).to.equal(1)
+                expect(directConversations[0].user1).to.exist
+                expect(directConversations[0].user2).to.exist
+
+                user1.isDeactivated = true
+                await userRepository.save(user1)
+
+                const directConversations2 = await directConversationRepository.find({
+                    relations: {
+                        user1: true,
+                        user2: true,
+                    },
+                })
+                expect(directConversations2.length).to.equal(0)
             }),
         ))
 })
