@@ -978,7 +978,7 @@ export abstract class QueryBuilder<Entity extends ObjectLiteral> {
         alias: string,
     ): string[] {
         const conditions: string[] = []
-
+        
         metadata.cascadingFilterConditionRelations.forEach((relation) => {
             const joinAttr = this.findCascadingFilterConditionJoinAttribute(
                 relation,
@@ -1011,7 +1011,7 @@ export abstract class QueryBuilder<Entity extends ObjectLiteral> {
                                 joinAttr.alias.name,
                             ),
                     )
-                conditions.push(...moreConditions)
+                conditions.push(...Array.from(new Set(moreConditions)))
             }
         })
         return conditions

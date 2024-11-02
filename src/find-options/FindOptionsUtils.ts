@@ -448,41 +448,64 @@ export class FindOptionsUtils {
         alias: string,
         metadata: EntityMetadata,
     ) {
-        metadata.cascadingFilterConditionRelations.forEach((relation) => {
-            // generate a relation alias
-            let relationAlias: string = DriverUtils.buildAlias(
-                qb.connection.driver,
-                { joiner: "__" },
-                alias,
-                relation.propertyName,
-            )
+        function recursivelyJoin(
+            qb: SelectQueryBuilder<any>,
+            alias: string,
+            metadata: EntityMetadata,
+            circularRelation?: RelationMetadata,
+        ) {
+            metadata.cascadingFilterConditionRelations.forEach((relation) => {
+                if (circularRelation === relation) return
 
-            // add a join for the relation
-            // Checking whether the relation wasn't joined yet.
-            const existingAlias = qb.expressionMap.getExistingJoinRelationAlias(
-                alias,
-                relation,
-            )
-            relationAlias = existingAlias || relationAlias
-            const addJoin = !existingAlias
+                // generate a relation alias
+                let relationAlias: string = DriverUtils.buildAlias(
+                    qb.connection.driver,
+                    { joiner: "__" },
+                    alias,
+                    relation.propertyName,
+                )
 
-            const joinAlreadyAdded = Boolean(
-                qb.expressionMap.joinAttributes.find(
-                    (joinAttribute) =>
-                        joinAttribute.alias.name === relationAlias,
-                ),
-            )
+                // add a join for the relation
+                // Checking whether the relation wasn't joined yet.
+                const existingAlias =
+                    qb.expressionMap.getExistingJoinRelationAlias(
+                        alias,
+                        relation,
+                    )
+                relationAlias = existingAlias || relationAlias
+                const addJoin = !existingAlias
 
-            if (addJoin && !joinAlreadyAdded) {
-                qb.leftJoin(alias + "." + relation.propertyPath, relationAlias)
-            }
+                const joinAlreadyAdded = Boolean(
+                    qb.expressionMap.joinAttributes.find(
+                        (joinAttribute) =>
+                            joinAttribute.alias.name === relationAlias,
+                    ),
+                )
 
-            // (recursive) join the cascading filter condition relations
-            this.joinCascadingFilterConditionRelations(
-                qb,
-                relationAlias,
-                relation.inverseEntityMetadata,
-            )
-        })
+                if (addJoin && !joinAlreadyAdded) {
+                    qb.leftJoin(
+                        alias + "." + relation.propertyPath,
+                        relationAlias,
+                    )
+                }
+
+                // Prevent infinite recursion by tracking circular relations
+                // (occurs when `filterConditionsCascade` is set on both sides of a relation)
+                const newCircularRelation =
+                    relation.inverseEntityMetadata.cascadingFilterConditionRelations.find(
+                        (rel) => rel.inverseRelation === relation,
+                    )
+
+                // (recursive) join the cascading filter condition relations
+                recursivelyJoin(
+                    qb,
+                    relationAlias,
+                    relation.inverseEntityMetadata,
+                    newCircularRelation,
+                )
+            })
+        }
+
+        recursivelyJoin(qb, alias, metadata)
     }
 }

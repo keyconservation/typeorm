@@ -538,4 +538,57 @@ describe("query builder > filter condition", () => {
                 expect(teamMembers2.length).to.equal(0)
             }),
         ))
+
+    it("filterConditionsCascade should work when set on both sides of a relation", () =>
+        Promise.all(
+            dataSources.map(async (dataSource) => {
+                const userRepository = dataSource.getRepository(User)
+                const teamRepository = dataSource.getRepository(Team)
+                const teamMemberRepository =
+                    dataSource.getRepository(TeamMember)
+
+                const user1 = new User()
+                const user2 = new User()
+                user1.isDeactivated = false
+                user2.isDeactivated = false
+                await userRepository.save([user1, user2])
+
+                const team = new Team()
+                team.user = user1
+                await teamRepository.save(team)
+
+                const teamMember1 = new TeamMember()
+                const teamMember2 = new TeamMember()
+                teamMember1.team = team
+                teamMember1.user = user2
+                teamMember2.team = team
+                teamMember2.user = user1
+                await teamMemberRepository.save([teamMember1, teamMember2])
+
+                const teamWithRelations = await teamRepository.findOne({
+                    where: { id: team.id },
+                    relations: {
+                        teamMembers: {
+                            user: true,
+                        },
+                    },
+                })
+
+                expect(teamWithRelations?.teamMembers.length).to.equal(2)
+
+                user2.isDeactivated = true
+                await userRepository.save(user2)
+
+                const teamWithRelations2 = await teamRepository.findOne({
+                    where: { id: team.id },
+                    relations: {
+                        teamMembers: {
+                            user: true,
+                        },
+                    },
+                })
+
+                expect(teamWithRelations2?.teamMembers.length).to.equal(1)
+            }),
+        ))
 })

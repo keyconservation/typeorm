@@ -1,9 +1,11 @@
 import {
     Entity,
     JoinColumn,
+    OneToMany,
     OneToOne,
     PrimaryGeneratedColumn,
 } from "../../../../../src"
+import { TeamMember } from "./TeamMember"
 import { User } from "./User"
 
 @Entity()
@@ -17,4 +19,9 @@ export class Team {
     })
     @JoinColumn()
     user: User
+
+    @OneToMany(() => TeamMember, (member) => member.team, {
+        filterConditionCascade: true,
+    })
+    teamMembers: TeamMember[]
 }
