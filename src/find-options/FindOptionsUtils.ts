@@ -397,23 +397,12 @@ export class FindOptionsUtils {
 
             // add a join for the relation
             // Checking whether the relation wasn't joined yet.
-            let addJoin = true
-            // TODO: Review this validation
-            for (const join of qb.expressionMap.joinAttributes) {
-                if (
-                    join.condition !== undefined ||
-                    join.mapToProperty !== undefined ||
-                    join.isMappingMany !== undefined ||
-                    join.direction !== "LEFT" ||
-                    join.entityOrProperty !==
-                        `${alias}.${relation.propertyPath}`
-                ) {
-                    continue
-                }
-                addJoin = false
-                relationAlias = join.alias.name
-                break
-            }
+            const existingAlias = qb.expressionMap.getExistingJoinRelationAlias(
+                alias,
+                relation,
+            )
+            relationAlias = existingAlias || relationAlias
+            const addJoin = !existingAlias
 
             const joinAlreadyAdded = Boolean(
                 qb.expressionMap.joinAttributes.find(
@@ -465,28 +454,17 @@ export class FindOptionsUtils {
                 qb.connection.driver,
                 { joiner: "__" },
                 alias,
-                relation.propertyName
+                relation.propertyName,
             )
 
             // add a join for the relation
             // Checking whether the relation wasn't joined yet.
-            let addJoin = true
-            // TODO: Review this validation
-            for (const join of qb.expressionMap.joinAttributes) {
-                if (
-                    join.condition !== undefined ||
-                    join.mapToProperty !== undefined ||
-                    join.isMappingMany !== undefined ||
-                    join.direction !== "LEFT" ||
-                    join.entityOrProperty !==
-                        `${alias}.${relation.propertyPath}`
-                ) {
-                    continue
-                }
-                addJoin = false
-                relationAlias = join.alias.name
-                break
-            }
+            const existingAlias = qb.expressionMap.getExistingJoinRelationAlias(
+                alias,
+                relation,
+            )
+            relationAlias = existingAlias || relationAlias
+            const addJoin = !existingAlias
 
             const joinAlreadyAdded = Boolean(
                 qb.expressionMap.joinAttributes.find(

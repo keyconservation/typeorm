@@ -944,14 +944,21 @@ export abstract class QueryBuilder<Entity extends ObjectLiteral> {
         relation: RelationMetadata,
         joinAlias: string,
     ): JoinAttribute | undefined {
-        const joinRelationAlias = DriverUtils.buildAlias(
+        let joinRelationAlias = DriverUtils.buildAlias(
             this.connection.driver,
             { joiner: "__" },
             joinAlias,
             relation.propertyName,
         )
+
+        const existingAlias = this.expressionMap.getExistingJoinRelationAlias(
+            joinAlias,
+            relation,
+        )
+        joinRelationAlias = existingAlias || joinRelationAlias
+
         /** Cascading filter conditions get their own, duplicate join attribute free of any conditions
-         * that are related to filterConditions. Duplicate join aliases end with _cfc, look for that first */
+         * that are not related to filterConditions. Duplicate join aliases end with _cfc, look for that first */
         const duplicateJoinAttr = this.expressionMap.joinAttributes.find(
             (ja) => ja.alias.name === joinRelationAlias + "_cfc",
         )

@@ -466,6 +466,30 @@ export class QueryExpressionMap {
     }
 
     /**
+     * Finds an existing join relation alias for a given alias and relation.
+     */
+    getExistingJoinRelationAlias(alias: string, relation: RelationMetadata) {
+        let existingAlias: string | undefined = undefined
+
+        // TODO: Review this validation
+        for (const join of this.joinAttributes) {
+            if (
+                join.condition !== undefined ||
+                join.mapToProperty !== undefined ||
+                join.isMappingMany !== undefined ||
+                join.direction !== "LEFT" ||
+                join.entityOrProperty !== `${alias}.${relation.propertyPath}`
+            ) {
+                continue
+            }
+            existingAlias = join.alias.name
+            break
+        }
+
+        return existingAlias
+    }
+
+    /**
      * Gets relation metadata of the relation this query builder works with.
      *
      * todo: add proper exceptions

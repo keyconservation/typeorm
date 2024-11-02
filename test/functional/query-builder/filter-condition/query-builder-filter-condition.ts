@@ -11,6 +11,8 @@ import { Post } from "./entity/Post"
 import { Comment } from "./entity/Comment"
 import { CommentLike } from "./entity/CommentLike"
 import { DirectConversation } from "./entity/DirectConversation"
+import { Team } from "./entity/Team"
+import { TeamMember } from "./entity/TeamMember"
 
 describe("query builder > filter condition", () => {
     let dataSources: DataSource[]
@@ -147,7 +149,7 @@ describe("query builder > filter condition", () => {
                 await postRepository.save([post1, post2])
 
                 const posts = await postRepository.find({
-                    withDeleted: true
+                    withDeleted: true,
                 })
                 expect(posts.length).to.equal(2)
 
@@ -155,7 +157,7 @@ describe("query builder > filter condition", () => {
                 await userRepository.save(user1)
 
                 const posts2 = await postRepository.find({
-                    withDeleted: true
+                    withDeleted: true,
                 })
                 expect(posts2.length).to.equal(1)
             }),
@@ -448,7 +450,8 @@ describe("query builder > filter condition", () => {
         Promise.all(
             dataSources.map(async (dataSource) => {
                 const userRepository = dataSource.getRepository(User)
-                const directConversationRepository = dataSource.getRepository(DirectConversation)
+                const directConversationRepository =
+                    dataSource.getRepository(DirectConversation)
 
                 const user1 = new User()
                 user1.isDeactivated = false
@@ -463,12 +466,13 @@ describe("query builder > filter condition", () => {
 
                 await directConversationRepository.save(directConversation)
 
-                const directConversations = await directConversationRepository.find({
-                    relations: {
-                        user1: true,
-                        user2: true,
-                    },
-                })
+                const directConversations =
+                    await directConversationRepository.find({
+                        relations: {
+                            user1: true,
+                            user2: true,
+                        },
+                    })
                 expect(directConversations.length).to.equal(1)
                 expect(directConversations[0].user1).to.exist
                 expect(directConversations[0].user2).to.exist
@@ -476,13 +480,62 @@ describe("query builder > filter condition", () => {
                 user1.isDeactivated = true
                 await userRepository.save(user1)
 
-                const directConversations2 = await directConversationRepository.find({
+                const directConversations2 =
+                    await directConversationRepository.find({
+                        relations: {
+                            user1: true,
+                            user2: true,
+                        },
+                    })
+                expect(directConversations2.length).to.equal(0)
+            }),
+        ))
+
+    it("filterConditionsCascade should work with nested relations that are specified in find options", () =>
+        Promise.all(
+            dataSources.map(async (dataSource) => {
+                const userRepository = dataSource.getRepository(User)
+                const teamRepository = dataSource.getRepository(Team)
+                const teamMemberRepository =
+                    dataSource.getRepository(TeamMember)
+
+                const user1 = new User()
+                const user2 = new User()
+                user1.isDeactivated = false
+                user2.isDeactivated = false
+                await userRepository.save([user1, user2])
+
+                const team = new Team()
+                team.user = user1
+                await teamRepository.save(team)
+
+                const teamMember = new TeamMember()
+                teamMember.team = team
+                teamMember.user = user2
+                await teamMemberRepository.save(teamMember)
+
+                const teamMembers = await teamMemberRepository.find({
                     relations: {
-                        user1: true,
-                        user2: true,
+                        team: {
+                            user: true,
+                        },
                     },
                 })
-                expect(directConversations2.length).to.equal(0)
+                expect(teamMembers.length).to.equal(1)
+                expect(teamMembers[0].team?.user).to.exist
+
+                user1.isDeactivated = true
+                await userRepository.save(user1)
+
+                const teamMembers2 = await teamMemberRepository.find({
+                    relations: {
+                        team: {
+                            user: true,
+                        },
+                    },
+                })
+
+                expect(teamMembers2.length).to.equal(0)
             }),
         ))
 })
