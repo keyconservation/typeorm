@@ -76,6 +76,7 @@ export interface RelationOptions {
 
     /**
      * If set, relation rows that are filtered by `rawFilterCondition` will cause rows of this entity to be excluded from results.
+     * Can be used only for many-to-one and one-to-one relations.
      */
     filterConditionCascade?: boolean;
 }

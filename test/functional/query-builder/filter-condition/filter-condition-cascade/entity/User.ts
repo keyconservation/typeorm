@@ -5,7 +5,7 @@ import {
     JoinTable,
     ManyToMany,
     PrimaryGeneratedColumn,
-} from "../../../../../src"
+} from "../../../../../../src"
 
 @Entity()
 export class User {

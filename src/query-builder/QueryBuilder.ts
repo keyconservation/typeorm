@@ -904,10 +904,18 @@ export abstract class QueryBuilder<Entity extends ObjectLiteral> {
                 conditionsArray.push(condition)
             }
 
+            const cascadingFilterConditionRelations: RelationMetadata[] = [
+                ...metadata.cascadingFilterConditionRelations,
+                ...metadata.relations.filter(
+                    (rel) =>
+                        rel.inverseEntityMetadata
+                            .cascadingFilterConditionRelations.length,
+                ),
+            ]
             if (
                 this.expressionMap.applyFilterConditions !== false &&
                 this.expressionMap.queryType === "select" &&
-                metadata.cascadingFilterConditionRelations.length
+                cascadingFilterConditionRelations.length
             ) {
                 const conditions = this.createCascadingFilterConditions(
                     metadata,
@@ -978,8 +986,25 @@ export abstract class QueryBuilder<Entity extends ObjectLiteral> {
         alias: string,
     ): string[] {
         const conditions: string[] = []
-        
-        metadata.cascadingFilterConditionRelations.forEach((relation) => {
+
+        const cascadingFilterConditionRelations: RelationMetadata[] = [
+            ...metadata.cascadingFilterConditionRelations,
+        ]
+        metadata.relations.forEach((relation) => {
+            if (
+                relation.entityMetadata.cascadingFilterConditionRelations.length
+            ) {
+                if (
+                    cascadingFilterConditionRelations.some(
+                        (r) => r.propertyPath === relation.propertyPath,
+                    )
+                )
+                    return
+                cascadingFilterConditionRelations.push(relation)
+            }
+        })
+
+        cascadingFilterConditionRelations.forEach((relation) => {
             const joinAttr = this.findCascadingFilterConditionJoinAttribute(
                 relation,
                 alias,

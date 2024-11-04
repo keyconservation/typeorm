@@ -446,7 +446,7 @@ export class FindOptionsUtils {
     public static joinCascadingFilterConditionRelations(
         qb: SelectQueryBuilder<any>,
         alias: string,
-        metadata: EntityMetadata,
+        _metadata: EntityMetadata,
     ) {
         function recursivelyJoin(
             qb: SelectQueryBuilder<any>,
@@ -454,8 +454,20 @@ export class FindOptionsUtils {
             metadata: EntityMetadata,
             circularRelation?: RelationMetadata,
         ) {
-            metadata.cascadingFilterConditionRelations.forEach((relation) => {
+            const cascadingFilterConditionRelations = [
+                ...new Set([
+                    ...metadata.cascadingFilterConditionRelations,
+                    ...metadata.relations.filter(
+                        (relation) =>
+                            relation.inverseEntityMetadata
+                                .cascadingFilterConditionRelations.length,
+                    ),
+                ]),
+            ]
+            cascadingFilterConditionRelations.forEach((relation) => {
                 if (circularRelation === relation) return
+                /** Don't join the FROM table to itself */
+                if (relation.inverseEntityMetadata === _metadata) return
 
                 // generate a relation alias
                 let relationAlias: string = DriverUtils.buildAlias(
@@ -494,6 +506,9 @@ export class FindOptionsUtils {
                 const newCircularRelation =
                     relation.inverseEntityMetadata.cascadingFilterConditionRelations.find(
                         (rel) => rel.inverseRelation === relation,
+                    ) ||
+                    relation.inverseEntityMetadata.relations.find(
+                        (rel) => rel.inverseRelation === relation,
                     )
 
                 // (recursive) join the cascading filter condition relations
@@ -506,6 +521,6 @@ export class FindOptionsUtils {
             })
         }
 
-        recursivelyJoin(qb, alias, metadata)
+        recursivelyJoin(qb, alias, _metadata)
     }
 }

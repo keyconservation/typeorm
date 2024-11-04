@@ -3,8 +3,8 @@ import {
     createTestingConnections,
     closeTestingConnections,
     reloadTestingDatabases,
-} from "../../../utils/test-utils"
-import { DataSource } from "../../../../src/data-source/DataSource"
+} from "../../../../utils/test-utils"
+import { DataSource } from "../../../../../src/data-source/DataSource"
 import { expect } from "chai"
 import { User } from "./entity/User"
 import { Post } from "./entity/Post"
@@ -14,7 +14,7 @@ import { DirectConversation } from "./entity/DirectConversation"
 import { Team } from "./entity/Team"
 import { TeamMember } from "./entity/TeamMember"
 
-describe("query builder > filter condition", () => {
+describe("query builder > filter condition > filter condition cascade", () => {
     let dataSources: DataSource[]
     before(
         async () =>
@@ -26,105 +26,6 @@ describe("query builder > filter condition", () => {
     )
     beforeEach(() => reloadTestingDatabases(dataSources))
     after(() => closeTestingConnections(dataSources))
-
-    it("should apply column filter condition with find", () =>
-        Promise.all(
-            dataSources.map(async (dataSource) => {
-                const userRepository = dataSource.getRepository(User)
-
-                const user1 = new User()
-                const user2 = new User()
-                user1.isDeactivated = true
-                user2.isDeactivated = false
-
-                await userRepository.save([user1, user2])
-
-                const users = await userRepository.find()
-                expect(users.length).to.equal(1)
-            }),
-        ))
-
-    it("should apply column filter condition with findOne", () =>
-        Promise.all(
-            dataSources.map(async (dataSource) => {
-                const userRepository = dataSource.getRepository(User)
-
-                const user = new User()
-                user.isDeactivated = true
-
-                await userRepository.save(user)
-
-                const foundUser = await userRepository.findOne({
-                    where: { id: user.id },
-                })
-                expect(foundUser).to.not.exist
-            }),
-        ))
-
-    it("should not apply column filter condition when `applyFilterCondition` is false with find", () =>
-        Promise.all(
-            dataSources.map(async (dataSource) => {
-                const userRepository = dataSource.getRepository(User)
-
-                const user1 = new User()
-                const user2 = new User()
-                user1.isDeactivated = true
-                user2.isDeactivated = false
-
-                await userRepository.save([user1, user2])
-
-                const users = await userRepository.find({
-                    applyFilterConditions: false,
-                })
-                expect(users.length).to.equal(2)
-            }),
-        ))
-
-    it("should not apply column filter condition when `applyFilterCondition` is false with findOne", () =>
-        Promise.all(
-            dataSources.map(async (dataSource) => {
-                const userRepository = dataSource.getRepository(User)
-
-                const user = new User()
-                user.isDeactivated = true
-
-                await userRepository.save(user)
-
-                const foundUser = await userRepository.findOne({
-                    where: { id: user.id },
-                    applyFilterConditions: false,
-                })
-                expect(foundUser).to.exist
-            }),
-        ))
-
-    it("should apply column filter to relations", () =>
-        Promise.all(
-            dataSources.map(async (dataSource) => {
-                const userRepository = dataSource.getRepository(User)
-
-                const user = new User()
-                user.isDeactivated = false
-
-                const friend1 = new User()
-                const friend2 = new User()
-                friend1.isDeactivated = false
-                friend2.isDeactivated = true
-
-                await userRepository.save([user, friend1, friend2])
-
-                user.friends = [friend1, friend2]
-                await userRepository.save(user)
-
-                const userWithFriends = await userRepository.findOne({
-                    where: { id: user.id },
-                    relations: { friends: true },
-                })
-
-                expect(userWithFriends?.friends.length).to.equal(1)
-                expect(userWithFriends?.friends[0].id).to.equal(friend1.id)
-            }),
-        ))
 
     it("filterConditionCascade should work properly", () =>
         Promise.all(
@@ -539,7 +440,7 @@ describe("query builder > filter condition", () => {
             }),
         ))
 
-    it("filterConditionsCascade should work when set on both sides of a relation", () =>
+    it("cascading filter conditions should automatically be applied to joins unless `applyFilterConditions` is false", () =>
         Promise.all(
             dataSources.map(async (dataSource) => {
                 const userRepository = dataSource.getRepository(User)
@@ -551,11 +452,11 @@ describe("query builder > filter condition", () => {
                 const user2 = new User()
                 user1.isDeactivated = false
                 user2.isDeactivated = false
-                await userRepository.save([user1, user2])
+                await userRepository.insert([user1, user2])
 
                 const team = new Team()
                 team.user = user1
-                await teamRepository.save(team)
+                await teamRepository.insert(team)
 
                 const teamMember1 = new TeamMember()
                 const teamMember2 = new TeamMember()
@@ -563,18 +464,16 @@ describe("query builder > filter condition", () => {
                 teamMember1.user = user2
                 teamMember2.team = team
                 teamMember2.user = user1
-                await teamMemberRepository.save([teamMember1, teamMember2])
+                await teamMemberRepository.insert([teamMember1, teamMember2])
 
                 const teamWithRelations = await teamRepository.findOne({
                     where: { id: team.id },
                     relations: {
-                        teamMembers: {
-                            user: true,
-                        },
+                        teamMembers: true,
                     },
                 })
 
-                expect(teamWithRelations?.teamMembers.length).to.equal(2)
+                expect(teamWithRelations?.teamMembers?.length).to.equal(2)
 
                 user2.isDeactivated = true
                 await userRepository.save(user2)
@@ -582,13 +481,21 @@ describe("query builder > filter condition", () => {
                 const teamWithRelations2 = await teamRepository.findOne({
                     where: { id: team.id },
                     relations: {
-                        teamMembers: {
-                            user: true,
-                        },
+                        teamMembers: true,
                     },
                 })
 
-                expect(teamWithRelations2?.teamMembers.length).to.equal(1)
+                expect(teamWithRelations2?.teamMembers?.length).to.equal(1)
+
+                const teamWithRelations3 = await teamRepository.findOne({
+                    where: { id: team.id },
+                    applyFilterConditions: false,
+                    relations: {
+                        teamMembers: true,
+                    },
+                })
+
+                expect(teamWithRelations3?.teamMembers?.length).to.equal(2)
             }),
         ))
 })

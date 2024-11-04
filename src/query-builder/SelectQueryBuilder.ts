@@ -2363,9 +2363,14 @@ export class SelectQueryBuilder<Entity extends ObjectLiteral>
 
         if (
             this.expressionMap.mainAlias?.hasMetadata &&
-            this.expressionMap.applyFilterConditions &&
-            this.expressionMap.mainAlias?.metadata
-                .cascadingFilterConditionRelations.length
+            this.expressionMap.applyFilterConditions !== false &&
+            (this.expressionMap.mainAlias?.metadata
+                .cascadingFilterConditionRelations.length ||
+                this.expressionMap.mainAlias.metadata.relations.some(
+                    (relation) =>
+                        relation.inverseEntityMetadata
+                            .cascadingFilterConditionRelations.length,
+                ))
         )
             FindOptionsUtils.joinCascadingFilterConditionRelations(
                 this,

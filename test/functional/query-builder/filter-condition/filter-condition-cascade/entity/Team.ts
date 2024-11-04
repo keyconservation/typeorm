@@ -4,7 +4,7 @@ import {
     OneToMany,
     OneToOne,
     PrimaryGeneratedColumn,
-} from "../../../../../src"
+} from "../../../../../../src"
 import { TeamMember } from "./TeamMember"
 import { User } from "./User"
 
@@ -20,8 +20,6 @@ export class Team {
     @JoinColumn()
     user: User
 
-    @OneToMany(() => TeamMember, (member) => member.team, {
-        filterConditionCascade: true,
-    })
+    @OneToMany(() => TeamMember, (member) => member.team)
     teamMembers: TeamMember[]
 }
