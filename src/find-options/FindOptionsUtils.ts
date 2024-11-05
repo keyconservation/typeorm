@@ -454,16 +454,8 @@ export class FindOptionsUtils {
             metadata: EntityMetadata,
             circularRelation?: RelationMetadata,
         ) {
-            const cascadingFilterConditionRelations = [
-                ...new Set([
-                    ...metadata.cascadingFilterConditionRelations,
-                    ...metadata.relations.filter(
-                        (relation) =>
-                            relation.inverseEntityMetadata
-                                .cascadingFilterConditionRelations.length,
-                    ),
-                ]),
-            ]
+            const cascadingFilterConditionRelations =
+                metadata.findAllCascadingFilterConditionRelations()
             cascadingFilterConditionRelations.forEach((relation) => {
                 if (circularRelation === relation) return
                 /** Don't join the FROM table to itself */
@@ -502,14 +494,9 @@ export class FindOptionsUtils {
                 }
 
                 // Prevent infinite recursion by tracking circular relations
-                // (occurs when `filterConditionsCascade` is set on both sides of a relation)
-                const newCircularRelation =
-                    relation.inverseEntityMetadata.cascadingFilterConditionRelations.find(
-                        (rel) => rel.inverseRelation === relation,
-                    ) ||
-                    relation.inverseEntityMetadata.relations.find(
-                        (rel) => rel.inverseRelation === relation,
-                    )
+                const newCircularRelation = relation.inverseEntityMetadata
+                    .findAllCascadingFilterConditionRelations()
+                    .find((rel) => rel.inverseRelation === relation)
 
                 // (recursive) join the cascading filter condition relations
                 recursivelyJoin(

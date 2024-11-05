@@ -896,6 +896,76 @@ export class EntityMetadata {
         return this
     }
 
+    /**
+     * Find relations that are many-to-many or one-to-many and have cascading
+     * filter conditions on the inverse side. For these relations, filter
+     * conditions should be applied to the inverse side.
+     * @returns RelationMetadata[]
+     */
+    findImplicitlyCascadingFilterConditionRelations(): RelationMetadata[] {
+        /**
+         *  If relation is many-to-many or one-to-many, then we want
+         * to implicitly apply cascading filter conditions to exclude
+         * inverse entity rows that don't meet their filter condition.
+         */
+        return this.relations.filter((relation) => {
+            const isInverseSideMany =
+                relation.isManyToMany || relation.isOneToMany
+            const inverseHasCascadingFilterConditionRelations =
+                !!relation.inverseEntityMetadata
+                    .cascadingFilterConditionRelations.length
+
+            return (
+                isInverseSideMany && inverseHasCascadingFilterConditionRelations
+            )
+        })
+    }
+
+    findAllCascadingFilterConditionRelations(): RelationMetadata[] {
+        return [
+            ...this.cascadingFilterConditionRelations,
+            ...this.findImplicitlyCascadingFilterConditionRelations(),
+        ]
+    }
+
+    /**
+     * Recursively find all cascading filter condition relations, including
+     * implicit cascades for many-to-many and one-to-many relations.
+     * @returns RelationMetadata[]
+     */
+    recursivelyFindAllCascadingFilterConditionRelations(): RelationMetadata[] {
+        const recursiveFn = (
+            metadata: EntityMetadata,
+            _relations: RelationMetadata[] = [],
+        ): RelationMetadata[] => {
+            const newRelations: RelationMetadata[] = []
+
+            const cascadingFilterConditionRelations =
+                metadata.findAllCascadingFilterConditionRelations()
+
+            cascadingFilterConditionRelations.forEach((relation) => {
+                const relationAlreadyAdded = _relations.some(
+                    (relationMetadata) => relationMetadata === relation,
+                )
+                if (relationAlreadyAdded) return
+
+                newRelations.push(relation)
+            })
+
+            newRelations.forEach((relation) => {
+                newRelations.push(
+                    ...recursiveFn(relation.inverseEntityMetadata, [
+                        ..._relations,
+                        ...newRelations,
+                    ]),
+                )
+            })
+
+            return newRelations
+        }
+        return recursiveFn(this)
+    }
+
     // -------------------------------------------------------------------------
     // Private Static Methods
     // -------------------------------------------------------------------------

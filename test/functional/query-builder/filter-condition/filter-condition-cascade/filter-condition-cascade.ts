@@ -13,6 +13,7 @@ import { CommentLike } from "./entity/CommentLike"
 import { DirectConversation } from "./entity/DirectConversation"
 import { Team } from "./entity/Team"
 import { TeamMember } from "./entity/TeamMember"
+import { Category } from "./entity/Category"
 
 describe("query builder > filter condition > filter condition cascade", () => {
     let dataSources: DataSource[]
@@ -440,7 +441,7 @@ describe("query builder > filter condition > filter condition cascade", () => {
             }),
         ))
 
-    it("cascading filter conditions should automatically be applied to joins unless `applyFilterConditions` is false", () =>
+    it("cascading filter conditions should automatically be applied to one-to-many relations unless `applyFilterConditions` is false", () =>
         Promise.all(
             dataSources.map(async (dataSource) => {
                 const userRepository = dataSource.getRepository(User)
@@ -496,6 +497,65 @@ describe("query builder > filter condition > filter condition cascade", () => {
                 })
 
                 expect(teamWithRelations3?.teamMembers?.length).to.equal(2)
+            }),
+        ))
+
+    it("cascading filter conditions should be applied to many-to-many relations unless `applyFilterConditions` is false", () =>
+        Promise.all(
+            dataSources.map(async (dataSource) => {
+                const userRepository = dataSource.getRepository(User)
+                const postRepository = dataSource.getRepository(Post)
+                const categoryRepository = dataSource.getRepository(Category)
+
+                const user1 = new User()
+                user1.isDeactivated = false
+                const user2 = new User()
+                user2.isDeactivated = false
+                await userRepository.save([user1, user2])
+
+                const category = new Category()
+                await categoryRepository.save(category)
+
+                const post1 = new Post()
+                post1.title = "test"
+                post1.author = user1
+                post1.categories = [category]
+                const post2 = new Post()
+                post2.title = "test"
+                post2.author = user2
+                post2.categories = [category]
+                await postRepository.save([post1, post2])
+
+                const categoryWithPosts =
+                    await categoryRepository.findOneOrFail({
+                        where: {
+                            id: category.id,
+                        },
+                        relations: {
+                            posts: true,
+                        },
+                    })
+                expect(categoryWithPosts.posts.length).to.equal(2)
+
+                user1.isDeactivated = true
+                await userRepository.save(user1)
+
+                const categoryWithPosts2 =
+                    await categoryRepository.findOneOrFail({
+                        where: { id: category.id },
+                        relations: { posts: true },
+                    })
+
+                expect(categoryWithPosts2.posts.length).to.equal(1)
+
+                const categoryWithPosts3 =
+                    await categoryRepository.findOneOrFail({
+                        where: { id: category.id },
+                        applyFilterConditions: false,
+                        relations: { posts: true },
+                    })
+
+                expect(categoryWithPosts3.posts.length).to.equal(2)
             }),
         ))
 })

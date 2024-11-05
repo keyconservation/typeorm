@@ -2060,39 +2060,8 @@ export class SelectQueryBuilder<Entity extends ObjectLiteral>
                     ? `${joinAttribute.condition} AND (${filterConditions})`
                     : `(${filterConditions})`
 
-                const recursivelyFindCascadingFilterConditionRelations = (
-                    metadata: EntityMetadata,
-                    _relations: RelationMetadata[] = [],
-                ): RelationMetadata[] => {
-                    const newRelations: RelationMetadata[] = []
-
-                    metadata.cascadingFilterConditionRelations.forEach(
-                        (relation) => {
-                            const relationAlreadyAdded = _relations.some(
-                                (relationMetadata) =>
-                                    relationMetadata === relation,
-                            )
-                            if (relationAlreadyAdded) return
-
-                            newRelations.push(relation)
-                        },
-                    )
-
-                    newRelations.forEach((relation) => {
-                        newRelations.push(
-                            ...recursivelyFindCascadingFilterConditionRelations(
-                                relation.inverseEntityMetadata,
-                                [..._relations, ...newRelations],
-                            ),
-                        )
-                    })
-
-                    return newRelations
-                }
                 const cascadingFilterConditionRelations =
-                    recursivelyFindCascadingFilterConditionRelations(
-                        this.expressionMap.mainAlias!.metadata,
-                    )
+                    this.expressionMap.mainAlias!.metadata.recursivelyFindAllCascadingFilterConditionRelations()
                 const isCascadingFilterConditionJoin =
                     cascadingFilterConditionRelations.some(
                         (relation) =>
