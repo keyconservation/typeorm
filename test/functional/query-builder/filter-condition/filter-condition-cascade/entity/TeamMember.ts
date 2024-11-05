@@ -9,7 +9,7 @@ import { User } from "./User"
 
 @Entity()
 export class TeamMember {
-    @ManyToOne(() => Team, team => team.teamMembers, {
+    @ManyToOne(() => Team, (team) => team.teamMembers, {
         filterConditionCascade: true,
     })
     @JoinColumn({ name: "teamId" })

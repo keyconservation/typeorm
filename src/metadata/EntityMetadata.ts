@@ -928,44 +928,6 @@ export class EntityMetadata {
         ]
     }
 
-    /**
-     * Recursively find all cascading filter condition relations, including
-     * implicit cascades for many-to-many and one-to-many relations.
-     * @returns RelationMetadata[]
-     */
-    recursivelyFindAllCascadingFilterConditionRelations(): RelationMetadata[] {
-        const recursiveFn = (
-            metadata: EntityMetadata,
-            _relations: RelationMetadata[] = [],
-        ): RelationMetadata[] => {
-            const newRelations: RelationMetadata[] = []
-
-            const cascadingFilterConditionRelations =
-                metadata.findAllCascadingFilterConditionRelations()
-
-            cascadingFilterConditionRelations.forEach((relation) => {
-                const relationAlreadyAdded = _relations.some(
-                    (relationMetadata) => relationMetadata === relation,
-                )
-                if (relationAlreadyAdded) return
-
-                newRelations.push(relation)
-            })
-
-            newRelations.forEach((relation) => {
-                newRelations.push(
-                    ...recursiveFn(relation.inverseEntityMetadata, [
-                        ..._relations,
-                        ...newRelations,
-                    ]),
-                )
-            })
-
-            return newRelations
-        }
-        return recursiveFn(this)
-    }
-
     // -------------------------------------------------------------------------
     // Private Static Methods
     // -------------------------------------------------------------------------

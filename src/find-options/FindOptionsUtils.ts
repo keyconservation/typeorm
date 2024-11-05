@@ -448,16 +448,18 @@ export class FindOptionsUtils {
         alias: string,
         _metadata: EntityMetadata,
     ) {
+        const visitedEntities = new Set<EntityMetadata>()
         function recursivelyJoin(
             qb: SelectQueryBuilder<any>,
             alias: string,
             metadata: EntityMetadata,
-            circularRelation?: RelationMetadata,
         ) {
+            if (visitedEntities.has(metadata)) return
+            visitedEntities.add(metadata)
+
             const cascadingFilterConditionRelations =
-                metadata.findAllCascadingFilterConditionRelations()
+                metadata.cascadingFilterConditionRelations
             cascadingFilterConditionRelations.forEach((relation) => {
-                if (circularRelation === relation) return
                 /** Don't join the FROM table to itself */
                 if (relation.inverseEntityMetadata === _metadata) return
 
@@ -493,17 +495,11 @@ export class FindOptionsUtils {
                     )
                 }
 
-                // Prevent infinite recursion by tracking circular relations
-                const newCircularRelation = relation.inverseEntityMetadata
-                    .findAllCascadingFilterConditionRelations()
-                    .find((rel) => rel.inverseRelation === relation)
-
                 // (recursive) join the cascading filter condition relations
                 recursivelyJoin(
                     qb,
                     relationAlias,
                     relation.inverseEntityMetadata,
-                    newCircularRelation,
                 )
             })
         }

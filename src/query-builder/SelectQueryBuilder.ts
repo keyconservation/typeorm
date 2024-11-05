@@ -2061,7 +2061,7 @@ export class SelectQueryBuilder<Entity extends ObjectLiteral>
                     : `(${filterConditions})`
 
                 const cascadingFilterConditionRelations =
-                    this.expressionMap.mainAlias!.metadata.recursivelyFindAllCascadingFilterConditionRelations()
+                    this.expressionMap.mainAlias!.metadata.findAllCascadingFilterConditionRelations()
                 const isCascadingFilterConditionJoin =
                     cascadingFilterConditionRelations.some(
                         (relation) =>
@@ -2137,6 +2137,18 @@ export class SelectQueryBuilder<Entity extends ObjectLiteral>
                     name: joinAttribute.junctionAlias,
                     metadata: joinAttribute.relation.junctionEntityMetadata,
                 })
+            }
+
+            if (
+                joinAttributeMetadata.cascadingFilterConditionRelations
+                    .length &&
+                this.expressionMap.applyFilterConditions !== false
+            ) {
+                FindOptionsUtils.joinCascadingFilterConditionRelations(
+                    this,
+                    aliasName,
+                    joinAttributeMetadata,
+                )
             }
         } else {
             let subQuery: string = ""

@@ -4,8 +4,10 @@ import {
     Entity,
     JoinTable,
     ManyToMany,
+    OneToMany,
     PrimaryGeneratedColumn,
 } from "../../../../../../src"
+import { TeamMember } from "./TeamMember"
 
 @Entity()
 export class User {
@@ -25,4 +27,7 @@ export class User {
     @ManyToMany(() => User)
     @JoinTable()
     friends: User[]
+
+    @OneToMany(() => TeamMember, (member) => member.user)
+    teamMemberships: TeamMember[]
 }

@@ -976,16 +976,17 @@ export abstract class QueryBuilder<Entity extends ObjectLiteral> {
     protected createCascadingFilterConditions(
         metadata: EntityMetadata,
         alias: string,
-        circularReference?: RelationMetadata,
+        visitedEntities = new Set<EntityMetadata>(),
     ): string[] {
+        if (visitedEntities.has(metadata)) return []
+        visitedEntities.add(metadata)
+
         const conditions: string[] = []
 
         const cascadingFilterConditionRelations =
             metadata.findAllCascadingFilterConditionRelations()
 
         cascadingFilterConditionRelations.forEach((relation) => {
-            if (circularReference === relation) return
-
             const joinAttr = this.findCascadingFilterConditionJoinAttribute(
                 relation,
                 alias,
@@ -1010,20 +1011,15 @@ export abstract class QueryBuilder<Entity extends ObjectLiteral> {
 
             const inverseCascadingFilterConditionRelations =
                 joinAttr.metadata?.findAllCascadingFilterConditionRelations()
-            if (inverseCascadingFilterConditionRelations?.length) {
-                // Prevent infinite recursion by tracking circular relations
-                const newCircularReference =
-                    relation.inverseEntityMetadata.cascadingFilterConditionRelations.find(
-                        (rel) => rel.inverseRelation === relation,
-                    )
 
+            if (inverseCascadingFilterConditionRelations?.length) {
                 const moreConditions =
                     inverseCascadingFilterConditionRelations.flatMap(
                         (relation) =>
                             this.createCascadingFilterConditions(
                                 relation.entityMetadata,
                                 joinAttr.alias.name,
-                                newCircularReference,
+                                visitedEntities,
                             ),
                     )
                 conditions.push(...Array.from(new Set(moreConditions)))

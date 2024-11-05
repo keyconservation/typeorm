@@ -229,6 +229,9 @@ describe("query builder > filter condition > filter condition cascade", () => {
                 const user2 = new User()
                 user2.isDeactivated = false
 
+                user1.friends = [user2]
+                user2.friends = [user1]
+
                 await userRepository.save([user1, user2])
 
                 const users = await userRepository
@@ -243,6 +246,8 @@ describe("query builder > filter condition > filter condition cascade", () => {
                     })
                     .getMany()
                 expect(users.length).to.equal(2)
+                expect(users[0].friends.length).to.equal(1)
+                expect(users[1].friends.length).to.equal(1)
 
                 user1.isDeactivated = true
                 await userRepository.save(user1)
@@ -259,6 +264,7 @@ describe("query builder > filter condition > filter condition cascade", () => {
                     })
                     .getMany()
                 expect(users2.length).to.equal(1)
+                expect(users2[0].friends.length).to.equal(0)
             }),
         ))
 
@@ -466,6 +472,11 @@ describe("query builder > filter condition > filter condition cascade", () => {
                 teamMember2.team = team
                 teamMember2.user = user1
                 await teamMemberRepository.insert([teamMember1, teamMember2])
+
+                const teamWithoutRelations = await teamRepository.findOne({
+                    where: { id: team.id },
+                })
+                expect(teamWithoutRelations).to.exist
 
                 const teamWithRelations = await teamRepository.findOne({
                     where: { id: team.id },

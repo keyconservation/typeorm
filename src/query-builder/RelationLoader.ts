@@ -179,7 +179,6 @@ export class RelationLoader {
             ? entityOrEntities
             : [entityOrEntities]
         const columns = relation.inverseRelation!.joinColumns
-        console.log("loadOneToManyOrOneToOneNotOwner", !!queryBuilder)
         const qb = queryBuilder
             ? queryBuilder
             : this.connection
