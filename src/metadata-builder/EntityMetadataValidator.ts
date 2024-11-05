@@ -377,7 +377,7 @@ export class EntityMetadataValidator {
                 (relation) => {
                     if (!relation.isOneToOne && !relation.isManyToOne) {
                         throw new TypeORMError(
-                            `Filter condition cascade can only be set on one-to-one or many-to-one relations.`,
+                            `Filter condition cascade can only be set on one-to-one or many-to-one relations. Check options of ${entityMetadata.targetName}#${relation.propertyPath}`,
                         )
                     }
                 },
