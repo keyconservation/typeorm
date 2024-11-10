@@ -27,7 +27,7 @@ import { InstanceChecker } from "../util/InstanceChecker"
 import { escapeRegExp } from "../util/escapeRegExp"
 import { RelationMetadata } from "../metadata/RelationMetadata"
 import { JoinAttribute } from "./JoinAttribute"
-import { DriverUtils } from "../driver/DriverUtils"
+import { FindOptionsApplyFilterConditions } from "../find-options/FindOptionsApplyFilterConditions"
 
 // todo: completely cover query builder with tests
 // todo: entityOrProperty can be target name. implement proper behaviour if it is.
@@ -878,6 +878,20 @@ export abstract class QueryBuilder<Entity extends ObjectLiteral> {
                 this.expressionMap.applyFilterConditions !== false
             ) {
                 metadata.filterColumns.forEach((filterColumn) => {
+                    if (
+                        typeof this.expressionMap.applyFilterConditions ===
+                            "object" &&
+                        this.expressionMap.applyFilterConditions !== null
+                    ) {
+                        if (
+                            this.expressionMap.skippedFilterConditions.some(
+                                (skippedFilterCondition) =>
+                                    skippedFilterCondition.propertyPath ===
+                                    filterColumn.propertyPath,
+                            )
+                        )
+                            return
+                    }
                     const column = this.expressionMap.aliasNamePrefixingEnabled
                         ? `${this.expressionMap.mainAlias!.name}.${
                               filterColumn.propertyName
@@ -912,6 +926,9 @@ export abstract class QueryBuilder<Entity extends ObjectLiteral> {
                 const conditions = this.createCascadingFilterConditions(
                     metadata,
                     this.expressionMap.mainAlias!.name,
+                    typeof this.expressionMap.applyFilterConditions === "object"
+                        ? this.expressionMap.applyFilterConditions
+                        : undefined,
                 )
                 if (conditions.length) conditionsArray.push(...conditions)
             }
@@ -944,13 +961,10 @@ export abstract class QueryBuilder<Entity extends ObjectLiteral> {
         relation: RelationMetadata,
         joinAlias: string,
     ): JoinAttribute | undefined {
-        let joinRelationAlias = DriverUtils.buildAlias(
-            this.connection.driver,
-            { joiner: "__" },
+        let joinRelationAlias = this.expressionMap.buildRelationAlias(
             joinAlias,
-            relation.propertyName,
+            relation.propertyPath,
         )
-
         const existingAlias = this.expressionMap.getExistingJoinRelationAlias(
             joinAlias,
             relation,
@@ -976,6 +990,9 @@ export abstract class QueryBuilder<Entity extends ObjectLiteral> {
     protected createCascadingFilterConditions(
         metadata: EntityMetadata,
         alias: string,
+        applyFilterConditionsObject:
+            | FindOptionsApplyFilterConditions<Entity>
+            | undefined,
         visitedEntities = new Set<EntityMetadata>(),
     ): string[] {
         if (visitedEntities.has(metadata)) return []
@@ -987,6 +1004,10 @@ export abstract class QueryBuilder<Entity extends ObjectLiteral> {
             metadata.findAllCascadingFilterConditionRelations()
 
         cascadingFilterConditionRelations.forEach((relation) => {
+            // If this relation is explicitly disabled, skip it
+            if (applyFilterConditionsObject?.[relation.propertyName] === false)
+                return
+
             const joinAttr = this.findCascadingFilterConditionJoinAttribute(
                 relation,
                 alias,
@@ -994,9 +1015,27 @@ export abstract class QueryBuilder<Entity extends ObjectLiteral> {
 
             if (!joinAttr) return
 
+            // Traverse applyFilterConditions to match the depth of the relation
+            const applyFilterConditionsObjectForRelation =
+                typeof applyFilterConditionsObject?.[relation.propertyName] ===
+                "object"
+                    ? (applyFilterConditionsObject[
+                          relation.propertyName
+                      ] as FindOptionsApplyFilterConditions<Entity>)
+                    : undefined
+
             const filterColumns =
                 relation.inverseEntityMetadata.filterColumns ?? []
             filterColumns.forEach((filterColumn) => {
+                // If this filterColumn is explicitly disabled, skip it
+                if (
+                    filterColumn.propertyPath &&
+                    applyFilterConditionsObjectForRelation?.[
+                        filterColumn.propertyPath
+                    ] === false
+                )
+                    return
+
                 const column = `${joinAttr.alias.name}.${filterColumn.propertyName}`
                 const condition = filterColumn.rawFilterCondition?.(
                     this.replacePropertyNames(column),
@@ -1015,12 +1054,14 @@ export abstract class QueryBuilder<Entity extends ObjectLiteral> {
             if (inverseCascadingFilterConditionRelations?.length) {
                 const moreConditions =
                     inverseCascadingFilterConditionRelations.flatMap(
-                        (relation) =>
-                            this.createCascadingFilterConditions(
+                        (relation) => {
+                            return this.createCascadingFilterConditions(
                                 relation.entityMetadata,
                                 joinAttr.alias.name,
+                                applyFilterConditionsObjectForRelation,
                                 visitedEntities,
-                            ),
+                            )
+                        },
                     )
                 conditions.push(...Array.from(new Set(moreConditions)))
             }

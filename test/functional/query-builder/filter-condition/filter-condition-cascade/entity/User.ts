@@ -21,6 +21,14 @@ export class User {
     })
     isDeactivated: boolean
 
+    @Column({
+        default: false,
+        rawFilterCondition(alias) {
+            return `${alias} != true`
+        },
+    })
+    isUnlisted: boolean
+
     @DeleteDateColumn()
     deletedAt: Date
 

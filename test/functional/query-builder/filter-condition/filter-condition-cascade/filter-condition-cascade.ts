@@ -354,6 +354,54 @@ describe("query builder > filter condition > filter condition cascade", () => {
             }),
         ))
 
+    it("filterConditionsCascade should not be affected by the exclusion of deep soft-deleted relations", () =>
+        Promise.all(
+            dataSources.map(async (dataSource) => {
+                const userRepository = dataSource.getRepository(User)
+                const postRepository = dataSource.getRepository(Post)
+                const commentRepository = dataSource.getRepository(Comment)
+
+                const user = new User()
+                user.isDeactivated = false
+
+                await userRepository.save(user)
+
+                const post = new Post()
+                post.title = "test"
+                post.author = user
+
+                await postRepository.save(post)
+
+                const comment = new Comment()
+                comment.content = "test"
+                comment.post = post
+
+                await commentRepository.save(comment)
+
+                const comments = await commentRepository.find({
+                    relations: {
+                        post: {
+                            author: true,
+                        },
+                    },
+                })
+                expect(comments.length).to.equal(1)
+                expect(comments[0].post.author).to.exist
+
+                await userRepository.softRemove(user)
+
+                const comments2 = await commentRepository.find({
+                    relations: {
+                        post: {
+                            author: true,
+                        },
+                    },
+                })
+                expect(comments2.length).to.equal(1)
+                expect(comments2[0].post.author).to.not.exist
+            }),
+        ))
+
     it("filterConditionsCascade should work with multiple relations", () =>
         Promise.all(
             dataSources.map(async (dataSource) => {
@@ -496,7 +544,6 @@ describe("query builder > filter condition > filter condition cascade", () => {
                         teamMembers: true,
                     },
                 })
-
                 expect(teamWithRelations2?.teamMembers?.length).to.equal(1)
 
                 const teamWithRelations3 = await teamRepository.findOne({
@@ -567,6 +614,145 @@ describe("query builder > filter condition > filter condition cascade", () => {
                     })
 
                 expect(categoryWithPosts3.posts.length).to.equal(2)
+            }),
+        ))
+
+    it("filter conditions on direct properties can be selectively disabled using `applyFilterConditions`", () =>
+        Promise.all(
+            dataSources.map(async (dataSource) => {
+                const userRepository = dataSource.getRepository(User)
+
+                const user1 = new User()
+                user1.isDeactivated = true
+                user1.isUnlisted = false
+                await userRepository.save(user1)
+
+                const user2 = await userRepository.findOne({
+                    where: { id: user1.id },
+                })
+                expect(user2).not.to.exist
+
+                const user3 = await userRepository.findOne({
+                    where: { id: user1.id },
+                    applyFilterConditions: {
+                        isDeactivated: false,
+                    },
+                })
+                expect(user3).to.exist
+
+                user1.isUnlisted = true
+                await userRepository.save(user1)
+
+                const user4 = await userRepository.findOne({
+                    where: { id: user1.id },
+                    applyFilterConditions: {
+                        isDeactivated: false,
+                    },
+                })
+                expect(user4).not.to.exist
+            }),
+        ))
+
+    it("filter conditions on relation properties can be selectively disabled using `applyFilterConditions`", () =>
+        Promise.all(
+            dataSources.map(async (dataSource) => {
+                const userRepository = dataSource.getRepository(User)
+                const postRepository = dataSource.getRepository(Post)
+                const user = new User()
+                user.isDeactivated = true
+                user.isUnlisted = false
+                await userRepository.save(user)
+
+                const post = new Post()
+                post.title = "test"
+                post.author = user
+
+                await postRepository.save(post)
+
+                const post2 = await postRepository.findOne({
+                    where: { id: post.id },
+                })
+                expect(post2).not.to.exist
+
+                const post3 = await postRepository.findOne({
+                    where: { id: post.id },
+                    applyFilterConditions: {
+                        author: {
+                            isDeactivated: false,
+                        },
+                    },
+                })
+                expect(post3).to.exist
+
+                user.isUnlisted = true
+                await userRepository.save(user)
+
+                const post4 = await postRepository.findOne({
+                    where: { id: post.id },
+                    applyFilterConditions: {
+                        author: {
+                            isDeactivated: false,
+                        },
+                    },
+                })
+                expect(post4).not.to.exist
+            }),
+        ))
+
+    it("filter conditions on deeply nested relation properties can be selectively disabled using `applyFilterConditions`", () =>
+        Promise.all(
+            dataSources.map(async (dataSource) => {
+                const userRepository = dataSource.getRepository(User)
+                const postRepository = dataSource.getRepository(Post)
+                const commentRepository = dataSource.getRepository(Comment)
+                const commentLikeRepository =
+                    dataSource.getRepository(CommentLike)
+
+                const user = new User()
+                user.isDeactivated = true
+                user.isUnlisted = false
+                await userRepository.save(user)
+
+                const post = new Post()
+                post.title = "test"
+                post.author = user
+
+                await postRepository.save(post)
+
+                const comment = new Comment()
+                comment.post = post
+                comment.content = "test"
+                await commentRepository.save(comment)
+
+                const commentLike = new CommentLike()
+                commentLike.comment = comment
+                await commentLikeRepository.save(commentLike)
+
+                const commentLikes1 = await commentLikeRepository.find()
+                expect(commentLikes1.length).to.equal(0)
+
+                const commentLikes2 = await commentLikeRepository.find({
+                    applyFilterConditions: {
+                        comment: {
+                            post: {
+                                author: { isDeactivated: false },
+                            },
+                        },
+                    },
+                })
+                expect(commentLikes2.length).to.equal(1)
+
+                user.isUnlisted = true
+                await userRepository.save(user)
+
+                const commentLikes3 = await commentLikeRepository.find({
+                    applyFilterConditions: {
+                        comment: {
+                            post: { author: { isDeactivated: false } },
+                        },
+                    },
+                })
+                expect(commentLikes3.length).to.equal(0)
             }),
         ))
 })
