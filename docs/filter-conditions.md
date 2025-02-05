@@ -2,7 +2,7 @@
 
 ## What is a Filter Condition?
 
-Filter conditions allow you to specify global conditions that automatically filter entity rows from query results. This is useful for implementing row-level security or other features that require static, global conditions without having to explicitly add where clauses to every query.
+Filter conditions allow you to specify global conditions that automatically filter entity rows from query results. This is useful for implementing row-level security or other features that require static, global conditions without having to explicitly add WHERE clauses to every query.
 
 This feature aims to ensure that filtered entities can never show up in any query builder results, whether you're loading them directly or through a relation.
 
