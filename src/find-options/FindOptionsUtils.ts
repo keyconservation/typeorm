@@ -477,14 +477,33 @@ export class FindOptionsUtils {
             const joinAlreadyAdded = Boolean(
                 qb.expressionMap.joinAttributes.find(
                     (joinAttribute) =>
-                        joinAttribute.alias.name === relationAlias ||
+                        (joinAttribute.alias.name === relationAlias ||
                         joinAttribute.relation?.propertyPath ===
-                            relation.propertyPath,
+                            relation.propertyPath) &&
+                        joinAttribute.direction === "INNER"
                 ),
             )
 
             if (addJoin && !joinAlreadyAdded) {
-                qb.leftJoin(alias + "." + relation.propertyPath, relationAlias)
+                // Always use INNER JOIN for relations with filterConditionCascade: true
+                qb.innerJoin(alias + "." + relation.propertyPath, relationAlias)
+
+                // Apply filter conditions from the related entity
+                relation.inverseEntityMetadata.filterColumns.forEach((column) => {
+                    // Check if this specific filter condition should be applied
+                    const relationFilters = typeof applyFilterConditions === "object" &&
+                        applyFilterConditions[relation.propertyPath as string]
+                    if (relationFilters &&
+                        typeof relationFilters === "object" &&
+                        (relationFilters as Record<string, boolean>)[column.propertyName] === false) {
+                        return
+                    }
+
+                    const condition = column.rawFilterCondition
+                        ? column.rawFilterCondition(relationAlias + "." + column.propertyName)
+                        : `${relationAlias}.${column.propertyName} = :${column.propertyName}`
+                    qb.andWhere(condition)
+                })
             }
         })
     }

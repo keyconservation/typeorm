@@ -2141,10 +2141,7 @@ export class SelectQueryBuilder<Entity extends ObjectLiteral>
                     .mainAlias!.metadata.findAllCascadingFilterConditionRelations()
                     .some(
                         (relation) =>
-                            relation.inverseEntityMetadata.name ===
-                                joinAttributeMetadata.name &&
-                            relation.propertyPath ===
-                                joinAttribute.relationPropertyPath,
+                            relation === joinAttribute.relation
                     )
 
                 if (
@@ -2155,15 +2152,14 @@ export class SelectQueryBuilder<Entity extends ObjectLiteral>
                         joinAttribute.relation?.isOneToOne ||
                         joinAttribute.relation?.isManyToOne
 
-                    if (
-                        (!condition &&
-                            !(
-                                joinAttributeMetadata.deleteDateColumn &&
-                                !this.expressionMap.withDeleted
-                            )) ||
-                        this.expressionMap
-                            .isCascadingFilterConditionRelationSubquery
-                    ) {
+                    const shouldCreateDuplicateJoinAttribute =
+                        !this.expressionMap
+                            .isCascadingFilterConditionRelationSubquery &&
+                        (condition ||
+                            (joinAttributeMetadata.deleteDateColumn &&
+                                !this.expressionMap.withDeleted))
+
+                    if (!shouldCreateDuplicateJoinAttribute) {
                         if (shouldForceInnerJoin) {
                             joinAttribute.direction = "INNER"
                         }

@@ -317,7 +317,7 @@ describe("query builder > filter condition > filter condition cascade", () => {
             }),
         ))
 
-    it.only("filterConditionsCascade should work properly with left join and select with conditions", () =>
+    it("filterConditionsCascade should work properly with left join and select with conditions", () =>
         Promise.all(
             dataSources.map(async (dataSource) => {
                 const userRepository = dataSource.getRepository(User)
